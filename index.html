@@ -13,7 +13,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#f5f6f8;--card:#fff;--ink:#1b2430;--mute:#6b7685;--line:#e2e6ec;--acc:#2563eb;--accsoft:#e8f0ff;--warn:#dc2626;--badbg:#fde8e8;--tot:#0f766e;--totbg:#e6f5f3;--priink:#fff}
-@media (prefers-color-scheme:dark){:root{--bg:#12161c;--card:#1a2029;--ink:#e8edf3;--mute:#93a0b1;--line:#2a323d;--acc:#6ea0ff;--accsoft:#1d2a44;--warn:#ff7b7b;--badbg:#3a1f22;--tot:#4fd1c0;--totbg:#173330;--priink:#0b1220}}
+:root[data-theme="dark"]{--bg:#12161c;--card:#1a2029;--ink:#e8edf3;--mute:#93a0b1;--line:#2a323d;--acc:#6ea0ff;--accsoft:#1d2a44;--warn:#ff7b7b;--badbg:#3a1f22;--tot:#4fd1c0;--totbg:#173330;--priink:#0b1220}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1a2029;--ink:#e8edf3;--mute:#93a0b1;--line:#2a323d;--acc:#6ea0ff;--accsoft:#1d2a44;--warn:#ff7b7b;--badbg:#3a1f22;--tot:#4fd1c0;--totbg:#173330;--priink:#0b1220}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif}
@@ -62,6 +63,18 @@ h2{font-size:15px;margin:10px 0 4px}
 .note{color:var(--mute);font-size:13px;margin:12px 2px 0}
 #toast{position:fixed;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 #toast.show{opacity:1}
+[hidden]{display:none!important}
+small.z{display:block;font-size:11px;font-weight:400;line-height:1.2;opacity:.75}
+button small.z{color:inherit}
+#gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,20,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.gatebox{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:grid;gap:10px}
+.gatebox h2{margin:0;font-size:18px}
+.gatebox p{margin:0;color:var(--mute);font-size:13px}
+.gatebox .in{margin:0}
+.gatebox .err{color:var(--warn)}
+.or{text-align:center;color:var(--mute);font-size:13px}
+.guest #clear,.guest .stp button{display:none}
+.guest #dl{grid-column:1/-1}
 @media(min-width:700px){header{grid-template-columns:1fr auto auto}.bar{grid-column:auto;display:flex}button{min-height:44px}}
 </style>
 </head>
@@ -74,13 +87,26 @@ h2{font-size:15px;margin:10px 0 4px}
     </div>
     <span id="date" class="datebox"></span>
     <div class="bar">
-      <button id="clear">Очистить день</button>
-      <button class="pri" id="dl">Скачать Excel</button>
+      <button id="theme" type="button"></button>
+      <button id="role" type="button"></button>
+      <button id="clear">Очистить день<small class="z">清除当天数据</small></button>
+      <button class="pri" id="dl">Скачать Excel<small class="z">下载Excel</small></button>
     </div>
   </header>
   <main id="list"></main>
   <section class="tot" id="sum"></section>
-  <p class="note">Дата ставится автоматически при открытии страницы. Изменения сохраняются сразу; если подключена общая база, коллега видит их через пару секунд.</p>
+  <p class="note">Дата ставится автоматически при открытии страницы. Изменения сохраняются сразу, коллеги видят их через пару секунд. В режиме гостя таблицу можно только смотреть. · 访客模式下只能查看。</p>
+</div>
+<div id="gate" hidden>
+  <div class="gatebox" role="dialog" aria-modal="true" aria-labelledby="gt">
+    <h2 id="gt">Вход в таблицу<small class="z">进入表格</small></h2>
+    <p>Админ может вносить и менять данные. Гость только смотрит.<small class="z">管理员可录入和修改数据，访客仅可查看。</small></p>
+    <input class="in" id="pw" type="password" inputmode="numeric" placeholder="Пароль админа · 管理员密码" autocomplete="off">
+    <p class="err" id="pwerr" hidden>Неверный пароль<small class="z">密码错误</small></p>
+    <button class="pri" id="gateAdmin" type="button">Войти как админ<small class="z">以管理员身份登录</small></button>
+    <div class="or">или · 或</div>
+    <button id="gateGuest" type="button">Гость (только просмотр)<small class="z">访客（仅查看）</small></button>
+  </div>
 </div>
 <div id="toast"></div>
 
@@ -192,15 +218,47 @@ function push(r,f,v){
   },250);
 }
 
+/* ---------- тема: авто / светлая / тёмная ---------- */
+const TN={light:'Тема: светлая<small class="z">主题：浅色</small>',dark:'Тема: тёмная<small class="z">主题：深色</small>'};
+let theme=null;try{theme=localStorage.getItem("defects:theme")}catch(e){}
+// при первом входе берём тему из настроек телефона, дальше — только светлая/тёмная
+if(theme!=="light"&&theme!=="dark")theme=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";
+function applyTheme(){
+  const h=document.documentElement;
+  h.dataset.theme=theme;h.style.colorScheme=theme;
+  $("#theme").innerHTML=TN[theme];
+}
+$("#theme").onclick=()=>{theme=theme==="dark"?"light":"dark";try{localStorage.setItem("defects:theme",theme)}catch(e){}applyTheme()};
+applyTheme();
+
+/* ---------- роли: админ / гость ---------- */
+const PASS="5555"; // пароль админа
+let role="guest";
+const isAdmin=()=>role==="admin";
+function applyRole(){
+  document.body.classList.toggle("guest",!isAdmin());
+  document.querySelectorAll("#list input").forEach(el=>el.readOnly=!isAdmin());
+  $("#role").innerHTML=isAdmin()?'Режим: админ<small class="z">模式：管理员</small>':'Режим: гость<small class="z">模式：访客</small>';
+}
+function openGate(){
+  $("#pw").value="";$("#pwerr").hidden=true;$("#gate").hidden=false;
+  if(!matchMedia("(pointer:coarse)").matches)$("#pw").focus();
+}
+function setRole(r){role=r;try{localStorage.setItem("defects:role",r)}catch(e){}$("#gate").hidden=true;applyRole()}
+$("#gateAdmin").onclick=()=>{if($("#pw").value===PASS)setRole("admin");else{$("#pwerr").hidden=false;$("#pw").select()}};
+$("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("#gateAdmin").click()});
+$("#gateGuest").onclick=()=>setRole("guest");
+$("#role").onclick=openGate;
+
 /* ---------- ввод ---------- */
 const L=$("#list");
 L.addEventListener("input",e=>{
-  const el=e.target;if(!el.dataset.f)return;
+  const el=e.target;if(!el.dataset.f||!isAdmin())return;
   if(el.dataset.f!=="batch") el.value=el.value.replace(/\D/g,"");
   push(el.dataset.r,el.dataset.f,el.value);
 });
 L.addEventListener("click",e=>{
-  const b=e.target.closest("button[data-d]");if(!b)return;
+  const b=e.target.closest("button[data-d]");if(!b||!isAdmin())return;
   const el=b.parentNode.querySelector("input");
   el.value=Math.max(0,n(el.value)+Number(b.dataset.d));
   push(el.dataset.r,el.dataset.f,el.value);
@@ -223,7 +281,7 @@ document.addEventListener("pointerdown",e=>{
 /* ---------- дата ---------- */
 function setDay(d){day=d;$("#date").textContent=d.split("-").reverse().join(".");pull(true)}
 $("#clear").onclick=async()=>{
-  if(!confirm("Очистить все данные за "+day+"?"))return;
+  if(!isAdmin()||!confirm("Очистить все данные за "+day+"?"))return;
   data={};localSave();render(true);
   if(DB_URL){try{await fetch(url(day),{method:"DELETE"})}catch(e){}}
 };
@@ -267,6 +325,8 @@ $("#dl").onclick=async()=>{
 
 /* ---------- старт ---------- */
 build();setDay(todayStr());
+{let saved=null;try{saved=localStorage.getItem("defects:role")}catch(e){}
+ if(saved==="admin"||saved==="guest"){role=saved;applyRole()}else{applyRole();openGate()}}
 if(DB_URL) setInterval(()=>pull(false),3000);
 // при возврате на страницу (телефон усыпляет вкладки): новая дата или свежие данные
 document.addEventListener("visibilitychange",()=>{
