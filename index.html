@@ -94,6 +94,7 @@ button.datebox{min-height:48px;padding:6px 12px;line-height:1.15;font-variant-nu
 .savebar button{width:100%}
 button:disabled{opacity:.6;cursor:default;transform:none}
 .guest .savebar{display:none}
+.lbl .bi{height:38px;margin-top:6px;font-size:15px;text-align:left;padding:0 10px}
 @media(min-width:700px){header{grid-template-columns:1fr auto auto}.bar{grid-column:auto;display:flex}button{min-height:44px}}
 </style>
 </head>
@@ -196,7 +197,7 @@ function build(){
     <label class="two1">Партия<small>批次</small><input class="in" data-r="${i}" data-f="batch" autocomplete="off"></label>
     <div class="sel"><div class="lbl">Всего отобрано<small>挑选总数</small></div>
       <div class="stp"><button type="button" data-d="-1" aria-label="Минус один">−</button>${num(i,"selected")}<button type="button" data-d="1" aria-label="Плюс один">+1</button><button type="button" class="pri" data-d="${p[2]}" aria-label="Плюс ${p[2]}">+${p[2]}</button></div></div>
-    ${DEFECTS.map(d=>`<div class="row"><span class="lbl">${d[1]}<small>${d[2]}</small></span>
+    ${DEFECTS.map(d=>`<div class="row"><span class="lbl">${d[1]}<small>${d[2]}</small><input class="in bi" data-r="${i}" data-f="${d[0]}_b" placeholder="Партия · 批次" autocomplete="off" aria-label="Партия брака: ${d[1]}"></span>
       <span class="stp"><button type="button" data-d="-1" aria-label="Минус один">−</button>${num(i,d[0])}<button type="button" data-d="1" aria-label="Плюс один">+</button></span></div>`).join("")}
   </div></details>`).join("");
   $("#sum").innerHTML=`<h2>Всего за день · 合计</h2><div><span>Всего отобрано · 挑选总数</span><b id="t_selected">0</b></div>`
@@ -219,6 +220,8 @@ function totals(){
     DEFECTS.forEach(d=>{s+=n(r[d[0]]);t[d[0]]+=n(r[d[0]])});
     t.selected+=n(r.selected);t.all+=s;
     const p=$("#s"+i);p.textContent=s;p.classList.toggle("bad",s>0);
+    const ph=r.batch?"= "+r.batch:"Партия · 批次";
+    document.querySelectorAll('[data-r="'+i+'"][data-f$="_b"]').forEach(e=>e.placeholder=ph);
   });
   Object.keys(t).forEach(k=>{const e=$("#t_"+k);if(e)e.textContent=t[k]});
 }
@@ -313,7 +316,7 @@ $("#role").onclick=openGate;
 const L=$("#list");
 L.addEventListener("input",e=>{
   const el=e.target;if(!el.dataset.f||!canEdit())return;
-  if(el.dataset.f!=="batch") el.value=el.value.replace(/\D/g,"");
+  if(el.dataset.f!=="batch"&&!el.dataset.f.endsWith("_b")) el.value=el.value.replace(/\D/g,"");
   push(el.dataset.r,el.dataset.f,el.value);
 });
 L.addEventListener("click",e=>{
@@ -385,17 +388,26 @@ $("#hlist").onclick=e=>{const b=e.target.closest("[data-day]");if(b&&go(b.datase
 $("#pick").onchange=e=>{const v=e.target.value;if(DATE_RE.test(v)&&v<=todayStr()){if(go(v))closeHist();else e.target.value=day}};
 
 /* ---------- скачивание ---------- */
+// партия брака: своя, а если не указана и брак есть — общая партия детали
+const bt=(r,d)=>r[d[0]+"_b"]||(n(r[d[0]])>0?r.batch:"")||"";
 function rows(){
   const head=["Дата 时间","Деталь 零部件","Номер детали 零件号","Партия 批次","Всего отобрано 挑选总数"]
-    .concat(DEFECTS.map(d=>d[1]+" "+d[2]),["Итого 合计"]);
+    .concat(DEFECTS.flatMap(d=>[d[1]+" "+d[2],"Партия 批次: "+d[1]]),["Итого 合计"]);
   const out=[head];
   PARTS.forEach((p,i)=>{
     const r=data[i]||{};let s=0;DEFECTS.forEach(d=>s+=n(r[d[0]]));
-    out.push([day,p[0],p[1],r.batch||"",n(r.selected)].concat(DEFECTS.map(d=>n(r[d[0]])),[s]));
+    out.push([day,p[0],p[1],r.batch||"",n(r.selected)].concat(DEFECTS.flatMap(d=>[n(r[d[0]]),bt(r,d)]),[s]));
   });
-  const tot=["","Всего","",""];let sel=0,all=0;const dsum=DEFECTS.map(()=>0);
+  let sel=0,all=0;const dsum=DEFECTS.map(()=>0);
   PARTS.forEach((_,i)=>{const r=data[i]||{};sel+=n(r.selected);DEFECTS.forEach((d,k)=>{dsum[k]+=n(r[d[0]]);all+=n(r[d[0]])})});
-  out.push(tot.concat([sel],dsum,[all]));
+  out.push(["","Всего","",""].concat([sel],DEFECTS.flatMap((d,k)=>[dsum[k],""]),[all]));
+  return out;
+}
+// второй лист: одна строка = один вид брака одной партии (удобно фильтровать и делать сводные)
+function rowsFlat(){
+  const out=[["Дата 时间","Деталь 零部件","Номер детали 零件号","Дефект 缺陷","Партия брака 缺陷批次","Количество 数量","Общая партия детали 零件批次"]];
+  PARTS.forEach((p,i)=>{const r=data[i]||{};
+    DEFECTS.forEach(d=>{const q=n(r[d[0]]);if(q>0)out.push([day,p[0],p[1],d[1]+" "+d[2],bt(r,d),q,r.batch||""])})});
   return out;
 }
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2200)}
@@ -405,6 +417,7 @@ $("#dl").onclick=async()=>{
     const ws=XLSX.utils.aoa_to_sheet(r);
     ws["!cols"]=r[0].map((_,i)=>({wch:i===1?20:i===2?15:16}));
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Дефекты");
+    const w2=XLSX.utils.aoa_to_sheet(rowsFlat());w2["!cols"]=[12,20,15,38,20,12,20].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,w2,"Брак по партиям");
     try{
       // на телефоне открываем меню «Поделиться»: сохранить в «Файлы» или отправить в мессенджер
       if(matchMedia("(pointer:coarse)").matches&&navigator.canShare){
