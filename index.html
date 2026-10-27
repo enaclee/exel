@@ -66,7 +66,7 @@ h2{font-size:15px;margin:10px 0 4px}
 [hidden]{display:none!important}
 small.z{display:block;font-size:11px;font-weight:400;line-height:1.2;opacity:.75}
 button small.z{color:inherit}
-#gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,20,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#gate,#hist{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,20,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .gatebox{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:grid;gap:10px}
 .gatebox h2{margin:0;font-size:18px}
 .gatebox p{margin:0;color:var(--mute);font-size:13px}
@@ -75,6 +75,25 @@ button small.z{color:inherit}
 .or{text-align:center;color:var(--mute);font-size:13px}
 .guest #clear,.guest .stp button{display:none}
 .guest #dl{grid-column:1/-1}
+button.datebox{min-height:48px;padding:6px 12px;line-height:1.15;font-variant-numeric:tabular-nums}
+.past{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:8px 8px 8px 12px;border:1px solid var(--acc);background:var(--accsoft);border-radius:12px;font-size:14px;font-weight:600}
+.past button{min-height:40px;white-space:nowrap}
+.two1{display:block;margin:12px 0 4px}
+.sel{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.sel .lbl{font-weight:600;margin-bottom:6px}
+.sel .stp{gap:6px}
+.sel .stp .in{flex:1;width:auto;min-width:0}
+.sel .stp button{width:auto;min-width:56px;padding:0 10px;font-size:19px}
+.sel .stp button[data-d="-1"]{width:48px;min-width:0;padding:0;font-size:26px}
+.histbox{max-width:400px;max-height:90vh;overflow:auto}
+.hl{display:grid;gap:6px;max-height:42vh;overflow:auto}
+.hi{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left}
+.hi span{color:var(--mute);font-size:13px;font-weight:400}
+.hi.cur{border-color:var(--acc);background:var(--accsoft)}
+.savebar{position:sticky;top:0;z-index:5;margin:0 0 10px;padding:max(6px,env(safe-area-inset-top)) 0 6px;background:var(--bg)}
+.savebar button{width:100%}
+button:disabled{opacity:.6;cursor:default;transform:none}
+.guest .savebar{display:none}
 @media(min-width:700px){header{grid-template-columns:1fr auto auto}.bar{grid-column:auto;display:flex}button{min-height:44px}}
 </style>
 </head>
@@ -85,7 +104,7 @@ button small.z{color:inherit}
       <h1>Таблица дефектов</h1>
       <div class="sub"><span class="dot" id="dot"></span><span id="status">Сохраняется только на этом устройстве</span></div>
     </div>
-    <span id="date" class="datebox"></span>
+    <button id="date" class="datebox" type="button"><span id="datetxt"></span><small class="z">История · 历史</small></button>
     <div class="bar">
       <button id="theme" type="button"></button>
       <button id="role" type="button"></button>
@@ -93,19 +112,31 @@ button small.z{color:inherit}
       <button class="pri" id="dl">Скачать Excel<small class="z">下载Excel</small></button>
     </div>
   </header>
+  <div class="savebar"><button class="pri" id="save" type="button"></button></div>
+  <div class="past" id="past" hidden><span>Прошлая дата<small class="z">往期日期</small></span><button id="toToday" type="button">Сегодня<small class="z">回到今天</small></button></div>
   <main id="list"></main>
   <section class="tot" id="sum"></section>
-  <p class="note">Дата ставится автоматически при открытии страницы. Изменения сохраняются сразу, коллеги видят их через пару секунд. В режиме гостя таблицу можно только смотреть. · 访客模式下只能查看。</p>
+  <p class="note">Дата ставится автоматически при открытии страницы. Изменения попадают в историю и к коллегам только по кнопке «Сохранить»; до этого они лежат на устройстве черновиком. В режиме гостя таблицу можно только смотреть. «Личная таблица» хранится только на этом устройстве и никому не видна. · 访客模式下只能查看。个人表格仅保存在本设备，他人不可见。更改仅在点击“保存”后写入历史，保存前只是本设备上的草稿。</p>
 </div>
 <div id="gate" hidden>
   <div class="gatebox" role="dialog" aria-modal="true" aria-labelledby="gt">
     <h2 id="gt">Вход в таблицу<small class="z">进入表格</small></h2>
-    <p>Админ может вносить и менять данные. Гость только смотрит.<small class="z">管理员可录入和修改数据，访客仅可查看。</small></p>
+    <p>Админ вносит и меняет общие данные. Гость только смотрит. Личная таблица — пустая, видна только вам.<small class="z">管理员可录入和修改共享数据，访客仅可查看。个人表格为空白，仅自己可见。</small></p>
     <input class="in" id="pw" type="password" inputmode="numeric" placeholder="Пароль админа · 管理员密码" autocomplete="off">
     <p class="err" id="pwerr" hidden>Неверный пароль<small class="z">密码错误</small></p>
     <button class="pri" id="gateAdmin" type="button">Войти как админ<small class="z">以管理员身份登录</small></button>
     <div class="or">или · 或</div>
     <button id="gateGuest" type="button">Гость (только просмотр)<small class="z">访客（仅查看）</small></button>
+    <button id="gateOwn" type="button">Личная таблица<small class="z">Пустая, видна только вам · 空白表格，仅自己可见</small></button>
+  </div>
+</div>
+<div id="hist" hidden>
+  <div class="gatebox histbox" role="dialog" aria-modal="true" aria-labelledby="ht">
+    <h2 id="ht">История<small class="z">历史记录</small></h2>
+    <label>Выбрать дату<small>选择日期</small><input class="in" id="pick" type="date"></label>
+    <div class="hl" id="hlist"></div>
+    <button class="pri" id="hToday" type="button">Сегодня<small class="z">今天</small></button>
+    <button id="hClose" type="button">Закрыть<small class="z">关闭</small></button>
   </div>
 </div>
 <div id="toast"></div>
@@ -119,10 +150,10 @@ const DB_URL = "https://defect-ena-default-rtdb.firebaseio.com";
 const ROOM = "defects"; // название общей таблицы
 
 const PARTS = [
-  ["FSB Dr 左前靠背","402048760AA"],["FSB Pas 右前靠背","402048788AA"],
-  ["FSC Dr 左前坐垫","402048772AA"],["FSC Pas 右前坐垫","402048795AA"],
-  ["RSB 40% 四分靠背","402048843AA"],["RSB 60% 六分靠背","402048824AA"],
-  ["RSC 100% 大坐垫","402048850AA"]
+  ["FSB Dr 左前靠背","402048760AA",60],["FSB Pas 右前靠背","402048788AA",60],
+  ["FSC Dr 左前坐垫","402048772AA",30],["FSC Pas 右前坐垫","402048795AA",30],
+  ["RSB 40% 四分靠背","402048843AA",18],["RSB 60% 六分靠背","402048824AA",18],
+  ["RSC 100% 大坐垫","402048850AA",15]
 ];
 const DEFECTS = [
   ["repair","Некачественный ремонт","修补不良"],
@@ -142,7 +173,19 @@ const wideNow=()=>matchMedia("(min-width:900px)").matches;
 
 let day = todayStr();
 let data = {};           // {rowIndex:{field:value}}
-const LS = "defects:";
+const LS="defects:",LSP="defects:own:"; // LSP — личные таблицы, только в браузере
+let role="guest",pinned=false,gen=0,dirty={}; // dirty — несохранённые правки {"строка|поле":значение}
+const nd=()=>Object.keys(dirty).length;
+function draftSave(){try{const k=pre()+"draft:"+day;nd()?localStorage.setItem(k,JSON.stringify(dirty)):localStorage.removeItem(k)}catch(e){}}
+function draftLoad(){try{return JSON.parse(localStorage.getItem(pre()+"draft:"+day))||{}}catch(e){return {}}}
+function applyDirty(){Object.keys(dirty).forEach(k=>{const[r,f]=k.split("|");(data[r]=data[r]||{})[f]=dirty[k]})}
+function saveUI(){
+  const b=$("#save"),c=nd();b.disabled=!c;
+  b.innerHTML=c?`Сохранить · изменений: ${c}<small class="z">保存 · 更改：${c}</small>`:'Сохранено<small class="z">已保存</small>';
+}
+function leave(){return !nd()||confirm("Есть несохранённые изменения за "+fmt(day)+". Уйти без сохранения? Они останутся черновиком на этом устройстве.\n有未保存的更改，确定离开？更改将作为草稿保留在本设备。")}
+const pre=()=>role==="personal"?LSP:LS;
+const shared=()=>!!DB_URL&&role!=="personal";
 
 /* ---------- построение: карточка на каждую деталь ---------- */
 function build(){
@@ -150,10 +193,9 @@ function build(){
   $("#list").innerHTML=PARTS.map((p,i)=>`<details class="part"${wideNow()||i===0?" open":""}>
   <summary><div class="sm"><span class="pt"><b>${p[0]}</b><small>${p[1]}</small></span><span class="pill" id="s${i}" title="Итого дефектов">0</span><i class="chev"></i></div></summary>
   <div class="body">
-    <div class="two">
-      <label>Партия<small>批次</small><input class="in" data-r="${i}" data-f="batch" autocomplete="off"></label>
-      <label>Всего отобрано<small>挑选总数</small>${num(i,"selected")}</label>
-    </div>
+    <label class="two1">Партия<small>批次</small><input class="in" data-r="${i}" data-f="batch" autocomplete="off"></label>
+    <div class="sel"><div class="lbl">Всего отобрано<small>挑选总数</small></div>
+      <div class="stp"><button type="button" data-d="-1" aria-label="Минус один">−</button>${num(i,"selected")}<button type="button" data-d="1" aria-label="Плюс один">+1</button><button type="button" class="pri" data-d="${p[2]}" aria-label="Плюс ${p[2]}">+${p[2]}</button></div></div>
     ${DEFECTS.map(d=>`<div class="row"><span class="lbl">${d[1]}<small>${d[2]}</small></span>
       <span class="stp"><button type="button" data-d="-1" aria-label="Минус один">−</button>${num(i,d[0])}<button type="button" data-d="1" aria-label="Плюс один">+</button></span></div>`).join("")}
   </div></details>`).join("");
@@ -184,20 +226,22 @@ function totals(){
 /* ---------- хранение и синхронизация ---------- */
 const url = p => DB_URL.replace(/\/$/,"")+"/"+ROOM+"/"+p+".json";
 function setStatus(txt,cls){$("#status").textContent=txt;$("#dot").className="dot "+(cls||"")}
-function localLoad(){try{return JSON.parse(localStorage.getItem(LS+day))||{}}catch(e){return {}}}
-function localSave(){try{localStorage.setItem(LS+day,JSON.stringify(data))}catch(e){}}
+function localLoad(){try{return JSON.parse(localStorage.getItem(pre()+day))||{}}catch(e){return {}}}
+function localSave(){try{localStorage.setItem(pre()+day,JSON.stringify(data))}catch(e){}}
 
 let last=0; // время последней правки: чтобы опрос не затирал свежий ввод
 async function pull(force){
-  if(!DB_URL){data=localLoad();render(force);return}
-  if(!force && Date.now()-last<4000) return;
+  if(!shared()){if(force){data=localLoad();render(true)}return}
+  if(!force && nd()) return;
+  const g=gen; // если за время запроса сменили дату/режим — ответ отбрасываем
   try{
     const r=await fetch(url(day));
     const j=await r.json();
-    data=normalize(j);
+    if(g!==gen) return;
+    data=normalize(j);localSave();applyDirty();
     render(force);
     setStatus("Общая таблица · синхронизировано","on");
-  }catch(e){setStatus("Нет связи с общей базой","err")}
+  }catch(e){if(g===gen)setStatus("Нет связи с общей базой","err")}
 }
 function normalize(j){
   if(!j) return {};
@@ -206,17 +250,31 @@ function normalize(j){
 }
 const tm={};
 function push(r,f,v){
-  (data[r]=data[r]||{})[f]=v;last=Date.now();
-  totals();localSave();
-  if(!DB_URL) return;
-  const d=day,k=r+"|"+f;clearTimeout(tm[k]);
-  tm[k]=setTimeout(async()=>{ // небольшая задержка: быстрые нажатия +/− уходят одним запросом
-    try{
-      await fetch(url(d+"/"+r+"/"+f),{method:"PUT",body:JSON.stringify(v)});
-      setStatus("Общая таблица · сохранено","on");
-    }catch(e){setStatus("Не удалось сохранить в общую базу","err")}
-  },250);
+  (data[r]=data[r]||{})[f]=v;dirty[r+"|"+f]=v;
+  totals();draftSave();saveUI();
 }
+async function save(){
+  if(!canEdit()||!nd())return;
+  const d=day,b=$("#save");b.disabled=true;
+  try{
+    let out=data;
+    if(shared()){ // подтягиваем свежие данные и накладываем только свои правки — чужие поля не затираем
+      const j=await(await fetch(url(d))).json();
+      if(j&&j.error)throw new Error(j.error);
+      out=normalize(j);
+      Object.keys(dirty).forEach(k=>{const[r,f]=k.split("|");(out[r]=out[r]||{})[f]=dirty[k]});
+    }
+    Object.keys(out).forEach(r=>{const o=out[r]||{};Object.keys(o).forEach(f=>{if(o[f]==="")delete o[f]});if(!Object.keys(o).length)delete out[r]});
+    if(shared()){const w=await fetch(url(d),{method:"PUT",body:JSON.stringify(out)});if(!w.ok)throw new Error("save")}
+    try{if(!shared())localStorage.setItem(pre()+d,JSON.stringify(out));localStorage.removeItem(pre()+"draft:"+d)}catch(e){}
+    if(d!==day){toast("Сохранено за "+fmt(d));return}
+    data=out;dirty={};if(shared())localSave();render(true);
+    if(shared())setStatus("Общая таблица · сохранено","on");
+    toast("Сохранено в историю · 已保存");
+  }catch(e){toast("Не удалось сохранить · 保存失败");if(shared())setStatus("Не удалось сохранить в общую базу","err")}
+  if(d===day)saveUI();
+}
+$("#save").onclick=save;
 
 /* ---------- тема: авто / светлая / тёмная ---------- */
 const TN={light:'Тема: светлая<small class="z">主题：浅色</small>',dark:'Тема: тёмная<small class="z">主题：深色</small>'};
@@ -233,32 +291,33 @@ applyTheme();
 
 /* ---------- роли: админ / гость ---------- */
 const PASS="5555"; // пароль админа
-let role="guest";
-const isAdmin=()=>role==="admin";
+const canEdit=()=>role==="admin"||role==="personal";
 function applyRole(){
-  document.body.classList.toggle("guest",!isAdmin());
-  document.querySelectorAll("#list input").forEach(el=>el.readOnly=!isAdmin());
-  $("#role").innerHTML=isAdmin()?'Режим: админ<small class="z">模式：管理员</small>':'Режим: гость<small class="z">模式：访客</small>';
+  document.body.classList.toggle("guest",!canEdit());
+  document.querySelectorAll("#list input").forEach(el=>el.readOnly=!canEdit());
+  $("#role").innerHTML=role==="admin"?'Режим: админ<small class="z">模式：管理员</small>':role==="personal"?'Режим: личный<small class="z">模式：个人</small>':'Режим: гость<small class="z">模式：访客</small>';
+  setStatus(role==="personal"?"Личная таблица · видна только вам, хранится на этом устройстве":DB_URL?"Общая таблица · загрузка…":"Сохраняется только на этом устройстве");
 }
 function openGate(){
   $("#pw").value="";$("#pwerr").hidden=true;$("#gate").hidden=false;
   if(!matchMedia("(pointer:coarse)").matches)$("#pw").focus();
 }
-function setRole(r){role=r;try{localStorage.setItem("defects:role",r)}catch(e){}$("#gate").hidden=true;applyRole()}
+function setRole(r){if(!leave())return;role=r;try{localStorage.setItem("defects:role",r)}catch(e){}$("#gate").hidden=true;applyRole();setDay(day)}
 $("#gateAdmin").onclick=()=>{if($("#pw").value===PASS)setRole("admin");else{$("#pwerr").hidden=false;$("#pw").select()}};
 $("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("#gateAdmin").click()});
 $("#gateGuest").onclick=()=>setRole("guest");
+$("#gateOwn").onclick=()=>setRole("personal");
 $("#role").onclick=openGate;
 
 /* ---------- ввод ---------- */
 const L=$("#list");
 L.addEventListener("input",e=>{
-  const el=e.target;if(!el.dataset.f||!isAdmin())return;
+  const el=e.target;if(!el.dataset.f||!canEdit())return;
   if(el.dataset.f!=="batch") el.value=el.value.replace(/\D/g,"");
   push(el.dataset.r,el.dataset.f,el.value);
 });
 L.addEventListener("click",e=>{
-  const b=e.target.closest("button[data-d]");if(!b||!isAdmin())return;
+  const b=e.target.closest("button[data-d]");if(!b||!canEdit())return;
   const el=b.parentNode.querySelector("input");
   el.value=Math.max(0,n(el.value)+Number(b.dataset.d));
   push(el.dataset.r,el.dataset.f,el.value);
@@ -279,12 +338,51 @@ document.addEventListener("pointerdown",e=>{
 });
 
 /* ---------- дата ---------- */
-function setDay(d){day=d;$("#date").textContent=d.split("-").reverse().join(".");pull(true)}
+const fmt=d=>d.split("-").reverse().join(".");
+function setDay(d){
+  day=d;gen++;pinned=d!==todayStr();
+  $("#datetxt").textContent=fmt(d);$("#past").hidden=!pinned;
+  dirty=draftLoad();data=localLoad();applyDirty();render(true);saveUI();pull(true);
+}
+const go=d=>leave()&&(setDay(d),true);
+$("#toToday").onclick=()=>go(todayStr());
 $("#clear").onclick=async()=>{
-  if(!isAdmin()||!confirm("Очистить все данные за "+day+"?"))return;
-  data={};localSave();render(true);
-  if(DB_URL){try{await fetch(url(day),{method:"DELETE"})}catch(e){}}
+  if(!canEdit()||!confirm("Очистить все данные за "+fmt(day)+"?"))return;
+  const d=day;Object.values(tm).forEach(clearTimeout);
+  data={};dirty={};try{localStorage.removeItem(pre()+d);localStorage.removeItem(pre()+"draft:"+d)}catch(e){}render(true);saveUI();
+  if(shared()){try{await fetch(url(d),{method:"DELETE"})}catch(e){}}
 };
+
+/* ---------- история: прошлые даты ---------- */
+const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
+function sums(o){let s=0,x=0,has=false;Object.values(o).forEach(r=>{if(!r)return;s+=n(r.selected);DEFECTS.forEach(d=>x+=n(r[d[0]]));if(Object.values(r).some(v=>v!==""&&v!=null))has=true});return{s,x,has}}
+async function listDays(){
+  const out={},p=pre();
+  if(shared()){
+    try{
+      const j=await(await fetch(DB_URL.replace(/\/$/,"")+"/"+ROOM+".json")).json();
+      if(!j||!j.error){Object.keys(j||{}).forEach(k=>{if(DATE_RE.test(k))out[k]=sums(normalize(j[k]))});return out}
+    }catch(e){}
+  }
+  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i),d=k.slice(p.length);
+    if(k.startsWith(p)&&DATE_RE.test(d))out[d]=sums(normalize(JSON.parse(localStorage.getItem(k))))}}catch(e){}
+  return out;
+}
+async function openHist(){
+  const pk=$("#pick");pk.max=todayStr();pk.value=day;
+  $("#hist").hidden=false;
+  const hl=$("#hlist");hl.textContent="…";
+  const days=await listDays();
+  const ks=Object.keys(days).filter(k=>days[k].has).sort().reverse();
+  hl.innerHTML=ks.length?ks.map(k=>`<button type="button" class="hi${k===day?" cur":""}" data-day="${k}"><b>${fmt(k)}</b><span>отобрано ${days[k].s} · дефектов ${days[k].x}</span></button>`).join(""):'<p>Пока нет сохранённых дней<small class="z">暂无已保存的日期</small></p>';
+}
+const closeHist=()=>{$("#hist").hidden=true};
+$("#date").onclick=openHist;
+$("#hClose").onclick=closeHist;
+$("#hist").addEventListener("click",e=>{if(e.target.id==="hist")closeHist()});
+$("#hToday").onclick=()=>{if(go(todayStr()))closeHist()};
+$("#hlist").onclick=e=>{const b=e.target.closest("[data-day]");if(b&&go(b.dataset.day))closeHist()};
+$("#pick").onchange=e=>{const v=e.target.value;if(DATE_RE.test(v)&&v<=todayStr()){if(go(v))closeHist();else e.target.value=day}};
 
 /* ---------- скачивание ---------- */
 function rows(){
@@ -323,15 +421,40 @@ $("#dl").onclick=async()=>{
   toast("Файл скачан");
 };
 
+/* ---------- ОДНОРАЗОВОЕ ВОССТАНОВЛЕНИЕ 26.10.2026 из Excel ----------
+   Один раз записывает в базу данные из файла за 26.10.2026 (заменяет этот день), затем ставит отметку.
+   После первого запуска этот блок и вызов restoreSeed() ниже можно удалить. */
+const SEED_DAY="2026-10-26",SEED={"0":{"batch":"07.08.2026","selected":"120","repair":"4","tear":"3","foam":"5"},"2":{"batch":"15.06.2026","selected":"120","foam":"9"},"3":{"batch":"15.06.2026","selected":"60","skew":"1","tear":"9","foam":"4"},"4":{"batch":"11.09.2026","selected":"166","tear":"9","edge":"1","foam":"7"},"5":{"batch":"11.09.2026","selected":"166","skew":"3","tear":"4","foam":"13"},"6":{"batch":"12.09.2026","selected":"120","skew":"2","tear":"2","edge":"1","fabric":"4","foam":"3"}};
+async function restoreSeed(){
+  const mk="restored2_"+SEED_DAY;
+  try{
+    if(!DB_URL){
+      if(!localStorage.getItem(LS+mk)){localStorage.setItem(LS+SEED_DAY,JSON.stringify(SEED));localStorage.setItem(LS+mk,"1");if(day===SEED_DAY)pull(true)}
+      return;
+    }
+    const m=await(await fetch(url("_meta/"+mk))).json();
+    if(m===true)return;
+    if(m!==null)throw new Error("meta"); // нет доступа к отметке — ничего не перезаписываем
+    const mw=await fetch(url("_meta/"+mk),{method:"PUT",body:"true"});if(!mw.ok)throw new Error("meta");
+    const w=await fetch(url(SEED_DAY),{method:"PUT",body:JSON.stringify(SEED)});
+    if(!w.ok){await fetch(url("_meta/"+mk),{method:"DELETE"});throw new Error("seed")}
+    toast("Восстановлено 26.10.2026 из Excel");
+    if(day===SEED_DAY)pull(true);
+  }catch(e){if(role==="admin")toast("Не удалось восстановить 26.10 — проверьте доступ к базе")}
+}
+
 /* ---------- старт ---------- */
-build();setDay(todayStr());
 {let saved=null;try{saved=localStorage.getItem("defects:role")}catch(e){}
- if(saved==="admin"||saved==="guest"){role=saved;applyRole()}else{applyRole();openGate()}}
+ const ok=saved==="admin"||saved==="guest"||saved==="personal";
+ if(ok)role=saved;
+ build();applyRole();setDay(todayStr());
+ if(!ok)openGate()}
+restoreSeed();
 if(DB_URL) setInterval(()=>pull(false),3000);
 // при возврате на страницу (телефон усыпляет вкладки): новая дата или свежие данные
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden)return;
-  if(day!==todayStr())setDay(todayStr());else if(DB_URL)pull(false);
+  if(!pinned&&day!==todayStr())setDay(todayStr());else pull(false);
 });
 </script>
 </body>
